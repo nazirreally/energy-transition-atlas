@@ -79,3 +79,8 @@ python -m compileall -q app.py src
 ## Design and release acceptance
 
 The app includes a custom responsive theme, hero/KPI treatment, four analytical workspaces, multiple world-map projections, bubble/choropleth modes, country comparisons, rankings, distributions and missingness auditing. Browser screenshot validation at desktop and mobile sizes is **not yet complete**. Do not describe the app as production-ready until live data ingestion, CI and browser QA are verified.
+
+
+### 2026-11-23 — R scientific companion
+
+Added `r/renewable_electricity.R`, a reproducible tidyverse/ggplot2 workflow that downloads the **published** OWID renewable electricity share CSV, validates the schema, calculates only observed adjacent-year percentage-point changes, exports observed records and renders country trends. Install `jsonlite`, `dplyr`, and `ggplot2`, then run `Rscript r/renewable_electricity.R`. GitHub Actions now checks the R script parses. **The R download/execution and CI outcome are not yet verified**; this addition does not claim a live dataset size or successful browser render.
