@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from src.data import OWID, build_panel, coverage, fetch_grapher, fetch_world_bank, latest_observed
+from src.momentum import adjacent_year_changes, transition_quadrants
 
 st.set_page_config(page_title='Energy Transition Atlas',page_icon='⚡',layout='wide',initial_sidebar_state='expanded')
 COLORS=['#45e2c0','#7da8ff','#efc789','#b8a0f8','#8de0ff','#8bd0c6']
@@ -85,7 +86,7 @@ st.markdown(f'''<div class="kpis"><div class="kpi"><span>Countries reporting</sp
 <div class="kpi"><span>Country-year observations</span><b>{data[metric].notna().sum():,}</b></div>
 <div class="kpi"><span>Observed median · {year}</span><b>{format_num(median)}</b></div>
 <div class="kpi"><span>Latest observed year</span><b>{latest}</b></div></div>''',unsafe_allow_html=True)
-world,compare,relationships,quality=st.tabs(['◉ World explorer','⌁ Country trajectories','◇ Transition relationships','▦ Source & coverage lab'])
+world,compare,relationships,momentum,quality=st.tabs(['◉ World explorer','⌁ Country trajectories','◇ Transition relationships','↗ Transition momentum','▦ Source & coverage lab'])
 with world:
     st.subheader('The geography of energy')
     a,b=st.columns(2)
@@ -162,6 +163,45 @@ with relationships:
                            log_x=logx,labels={x:LABELS[x],y:LABELS[y]},opacity=.8)
             fig.update_traces(marker=dict(size=11,line=dict(width=1,color='#0c2032')))
             show(fig,520)
+with momentum:
+    st.subheader('Observed annual electricity-mix momentum')
+    st.caption('Year-over-year percentage-point changes require observations in BOTH consecutive calendar years. No missing years are filled. CO₂ changes are in tonnes per person, not percentage points.')
+    changes=adjacent_year_changes(data)
+    paired=transition_quadrants(changes)
+    annual=paired[paired.year.eq(year)].copy()
+    if annual.empty:
+        st.info('No countries have both renewable and fossil electricity shares reported in adjacent years for this year.')
+    else:
+        st.caption(f'{len(annual):,} countries with both observed adjacent-year share changes in {year}')
+        scatter=px.scatter(annual,x='renewables_share_delta',y='fossil_share_delta',
+                           color='transition_pattern',hover_name='country',
+                           color_discrete_map={'Renewables up · fossil down':'#45e2c0',
+                                               'Renewables down · fossil up':'#efc789',
+                                               'Both shares up':'#8de0ff',
+                                               'Both shares down':'#b8a0f8',
+                                               'Mixed / unchanged':'#b9cddd'},
+                           labels={'renewables_share_delta':'Renewables change (percentage points)',
+                                   'fossil_share_delta':'Fossil change (percentage points)',
+                                   'transition_pattern':'Observed pattern'},
+                           custom_data=['year','co2_per_capita_delta'])
+        scatter.add_hline(y=0,line_dash='dot',line_color='#8199ae')
+        scatter.add_vline(x=0,line_dash='dot',line_color='#8199ae')
+        scatter.update_traces(marker=dict(size=11,line=dict(width=1,color='#0c2032')))
+        show(scatter,510)
+        st.subheader('Observed transition patterns')
+        pattern_counts=annual.groupby('transition_pattern',as_index=False).size().rename(columns={'size':'countries'})
+        show(px.bar(pattern_counts,x='transition_pattern',y='countries',
+                    color_discrete_sequence=['#45e2c0'],
+                    labels={'transition_pattern':'Pattern','countries':'Countries'}),310)
+        st.dataframe(annual[['country','iso3','year','renewables_share_delta',
+                             'fossil_share_delta','co2_per_capita_delta','transition_pattern']]
+                     .sort_values('renewables_share_delta',ascending=False),
+                     use_container_width=True,hide_index=True)
+        st.download_button('Download observed transition changes (CSV)',
+                           annual.to_csv(index=False).encode(),
+                           file_name=f'energy_transition_changes_{year}.csv',mime='text/csv')
+    st.caption('Interpretation: changes in electricity generation shares are not changes in absolute generation; the non-fossil remainder includes nuclear and other sources. CO₂ per capita covers broader emissions and is not attributable to electricity alone.')
+
 with quality:
     st.subheader('Data lineage & completeness')
     st.caption('Outer joins retain actual observed country-years. Missing values are not imputed or interpolated.')
