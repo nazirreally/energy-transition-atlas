@@ -1,8 +1,8 @@
 # ⚡ Energy Transition Atlas
 
-**Observed-data geographic intelligence for electricity, emissions and economic development.** An interactive navy/mint Streamlit dashboard with world maps, rankings, country trajectories, indicator relationships, data coverage and CSV exports.
+**Observed-data geographic intelligence for electricity, emissions and economic development.** An interactive navy/mint Streamlit dashboard with world maps, rankings, country trajectories, indicator relationships, **adjacent-year transition momentum**, data coverage and CSV exports.
 
-> **Verification status (2026-11-22):** Source code committed to this standalone repository. Local deterministic unit tests passed previously (6/6); GitHub CI and live data ingestion have not yet been verified. No browser screenshots or deployment claims are made. Dataset counts are computed from publisher data at runtime; no synthetic analytical observations are included.
+> **Verification status (2026-11-22):** Source code committed to this standalone repository. Six original deterministic unit tests passed previously; six new momentum tests passed in an isolated local run (6/6), but the combined repository suite has not been run; GitHub CI and live data ingestion have not yet been verified. No browser screenshots or deployment claims are made. Dataset counts are computed from publisher data at runtime; no synthetic analytical observations are included.
 
 ## Analytical workspaces
 
@@ -11,7 +11,7 @@
 | World explorer | Metric/year, projection, choropleth/bubbles, rank direction/count | Map, rank and compare country observations |
 | Country trajectories | Country selection, start year, raw/indexed trends | Compare historical patterns and gaps |
 | Transition relationships | X/Y metrics and log scale | Investigate matched cross-country associations |
-| Source & coverage lab | Year, missingness, observed CSV export | Audit lineage, completeness and temporal coverage |
+| Transition momentum | Reporting year, paired renewable/fossil share changes | Classify observed annual shifts, examine quadrants, export changes |\n| Source & coverage lab | Year, missingness, observed CSV export | Audit lineage, completeness and temporal coverage |
 
 ## Architecture
 
@@ -27,7 +27,7 @@ flowchart LR
   Q --> M[World map and rankings]
   Q --> T[Country trends]
   Q --> R[Indicator relationships]
-  Q --> L[Coverage audit and CSV export]
+  Q --> L[Coverage audit and CSV export]\n  Q --> N[Exact adjacent-year change engine]\n  N --> P[Transition quadrant analysis]
 ```
 
 ## Primary publisher sources
@@ -84,3 +84,16 @@ The app includes a custom responsive theme, hero/KPI treatment, four analytical 
 ### 2026-11-23 — R scientific companion
 
 Added `r/renewable_electricity.R`, a reproducible tidyverse/ggplot2 workflow that downloads the **published** OWID renewable electricity share CSV, validates the schema, calculates only observed adjacent-year percentage-point changes, exports observed records and renders country trends. Install `jsonlite`, `dplyr`, and `ggplot2`, then run `Rscript r/renewable_electricity.R`. GitHub Actions now checks the R script parses. **The R download/execution and CI outcome are not yet verified**; this addition does not claim a live dataset size or successful browser render.
+
+
+### 2026-11-23 — Transition Momentum research workspace
+
+The fifth workspace introduces **observed, exact adjacent-year energy-mix diagnostics**. It calculates renewable and fossil electricity-generation share changes in **percentage points**, plus CO₂-per-capita changes in **tonnes/person** when available. Only matching consecutive calendar years qualify. Missing years and missing metric pairs remain missing rather than being interpolated or silently converted to zero.
+
+The interactive quadrant scatter classifies countries into *renewables up/fossil down*, *renewables down/fossil up*, *both up*, *both down*, or *mixed/unchanged*. It includes year filters, pattern counts, country-level tables and a CSV download of observed changes. This is descriptive accounting, **not** a claim about causal emissions effects, absolute generation or electricity-sector emissions. Nuclear and other non-fossil sources mean renewable and fossil shares need not sum to 100%.
+
+**Implementation:** `src/momentum.py` is a reusable pure-Pandas analytical engine; `tests/test_momentum.py` covers exact adjacent-year differences, skipped years, missing values, duplicate keys, invalid years and nonfinite values. The six new tests passed locally in isolation. The full repository test suite, live publisher API calls, rendered Streamlit interface, Docker image and GitHub Actions have **not** been verified for this update.
+
+**Reproduce:** Install dependencies using the commands above, run `python -m pytest -q`, then `streamlit run app.py`. Select **Transition momentum**, choose a reporting year, inspect the quadrants and export `energy_transition_changes_<year>.csv`.
+
+**Engineering tradeoff:** The module computes observed deltas without adding forecast models, interpolation or statistical significance claims. The first reported year for a country cannot have a change, and a reporting gap deliberately produces a null delta. Future work: regional aggregation with explicit denominators, country drill-downs, and visual QA across screen sizes.
